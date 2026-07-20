@@ -4,7 +4,7 @@ import { auth, db } from "./firebaseConfig";
 import { useCurrentUser } from "./CurrentUserContext";
 import {
   collection, doc, getDoc, getDocs, setDoc, updateDoc, addDoc,
-  query, where, onSnapshot, serverTimestamp,
+  query, where, orderBy, limit, onSnapshot, serverTimestamp,
 } from "firebase/firestore";
 import {
   Menu, Search, Bell, Plus, ChevronRight, ChevronDown, Home as HomeIcon,
@@ -204,6 +204,29 @@ const CARE_DIRECTORY = {
   "CARE-77120-KJ": { name: "Karim Uddin", phone: "+880 1912-556234", initials: "KU", bg: "#E5EFFC", fg: "#2F6FE0" },
   "CARE-90344-NJ": { name: "Nusrat Jahan", phone: "+880 1655-887123", initials: "NJ", bg: "#EFEAFB", fg: "#6E4FD1" },
 };
+
+// ---- Real-time meal menu system ----
+const MEAL_TYPES = [
+  { key: "breakfast", label: "Breakfast", icon: Sun, fg: "#1F8A5A" },
+  { key: "lunch", label: "Lunch", icon: Sun, fg: "#2F6FE0" },
+  { key: "dinner", label: "Dinner", icon: Moon, fg: "#E08A20" },
+];
+
+const MEAL_PRESET_ITEMS = [
+  { key: "fish", label: "Fish" },
+  { key: "beef", label: "Beef" },
+  { key: "mutton", label: "Mutton" },
+  { key: "chicken", label: "Chicken" },
+  { key: "vegetable", label: "Vegetable" },
+];
+
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function slugify(text) {
+  return text.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
 
 const managerStats = [
   { key: "students", icon: Users, bg: "#E4F3EA", fg: "#1F8A5A", value: "186", label: "Students", sub: "Active" },
@@ -1753,18 +1776,9 @@ function RolePicker({ onChoose }) {
   );
 }
 
-function ManagerDashboard({ currentUser, hostelId, hostelInfo }) {
+function ManagerDashboard({ currentUser, hostelId, hostelInfo, students }) {
   const [quickEntryOpen, setQuickEntryOpen] = useState(false);
-  const [students, setStudents] = useState([]);
   const [sentInvites, setSentInvites] = useState([]);
-
-  useEffect(() => {
-    if (!hostelId) return;
-    const unsub = onSnapshot(collection(db, "hostels", hostelId, "students"), (snap) => {
-      setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
-    return () => unsub();
-  }, [hostelId]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -1904,57 +1918,6 @@ function ManagerDashboard({ currentUser, hostelId, hostelInfo }) {
         })}
       </div>
 
-      {/* Today's Meals Summary */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "18px 0 10px" }}>
-        <span style={{ fontWeight: 700, fontSize: 15.5, color: "#1A1A1A", display: "flex", alignItems: "center", gap: 6 }}>
-          <Utensils size={16} /> Today's Meals Summary
-        </span>
-        <span style={{ color: GREEN, fontWeight: 600, fontSize: 12.5 }}>View all</span>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-        {mealsSummary.map(m => {
-          const Icon = m.icon;
-          return (
-            <div key={m.key} style={{ background: "#fff", border: "1px solid #ECEDE8", borderRadius: 12, padding: "12px 6px", textAlign: "center" }}>
-              <Icon size={16} color={m.fg} style={{ marginBottom: 6 }} />
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#1A1A1A" }}>{m.value}</div>
-              <div style={{ fontSize: 10, color: "#8B8D86" }}>{m.label}</div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Input Menu For Today */}
-      <div style={{ background: "#fff", border: "1px solid #ECEDE8", borderRadius: 16, padding: 16, marginTop: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span style={{ fontWeight: 700, fontSize: 15, color: "#1A1A1A", display: "flex", alignItems: "center", gap: 6 }}>
-            <SquarePen size={15} /> Input Menu For Today
-          </span>
-          <ChevronRight size={16} color="#c7c8c2" />
-        </div>
-        {menuToday.map((m, i) => {
-          const Icon = m.icon;
-          return (
-            <div key={m.key} style={{
-              display: "flex", alignItems: "center", gap: 10, padding: "12px 0",
-              borderTop: "1px solid #F0F1EC", marginTop: 10
-            }}>
-              <Icon size={16} color={m.fg} />
-              <span style={{ fontSize: 13.5, color: "#1A1A1A", flex: 1 }}>{m.name}</span>
-              <span style={{ fontSize: 12.5, color: "#8B8D86" }}>{m.items} items</span>
-              <ChevronRight size={15} color="#c7c8c2" />
-            </div>
-          );
-        })}
-        <button style={{
-          width: "100%", background: GREEN_DARK, border: "none", borderRadius: 12, color: "#fff",
-          padding: "12px 0", fontWeight: 600, fontSize: 13.5, display: "flex", alignItems: "center",
-          justifyContent: "center", gap: 8, cursor: "pointer", marginTop: 14
-        }}>
-          <CheckCircle2 size={15} /> Submit Today's Menu
-        </button>
-      </div>
-
       {/* Recent Activities */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "20px 0 10px" }}>
         <span style={{ fontWeight: 700, fontSize: 16, color: "#1A1A1A" }}>Recent Activities</span>
@@ -1988,6 +1951,10 @@ function ManagerDashboard({ currentUser, hostelId, hostelInfo }) {
 
 function StudentDashboard({ currentUser, hostelId, hostelInfo, onAccepted }) {
   const [pendingRequests, setPendingRequests] = useState([]);
+  const [todayMenu, setTodayMenu] = useState(null); // { breakfast: [...], lunch: [...], dinner: [...] }
+  const [myChoices, setMyChoices] = useState({});
+  const [savingChoice, setSavingChoice] = useState(false);
+  const [choiceSavedNote, setChoiceSavedNote] = useState("");
 
   useEffect(() => {
     if (!currentUser) return;
@@ -2003,10 +1970,39 @@ function StudentDashboard({ currentUser, hostelId, hostelInfo, onAccepted }) {
     return () => unsub();
   }, [currentUser]);
 
+  useEffect(() => {
+    if (!hostelId) { setTodayMenu(null); return; }
+    const unsub = onSnapshot(doc(db, "hostels", hostelId, "days", todayKey()), (snap) => {
+      const data = snap.exists() ? snap.data() : {};
+      setTodayMenu(data.menu || null);
+      const mine = data.choices?.[currentUser?.uid];
+      if (mine) setMyChoices(mine);
+    });
+    return () => unsub();
+  }, [hostelId, currentUser]);
+
+  const pickChoice = (mealKey, itemKey) => {
+    setMyChoices(prev => ({ ...prev, [mealKey]: itemKey }));
+  };
+
+  const handleSaveChoices = async () => {
+    setSavingChoice(true);
+    try {
+      await setDoc(doc(db, "hostels", hostelId, "days", todayKey()), {
+        choices: { [currentUser.uid]: { name: currentUser.name, ...myChoices } },
+      }, { merge: true });
+      setChoiceSavedNote("Your meal choices are saved!");
+      setTimeout(() => setChoiceSavedNote(""), 3000);
+    } finally {
+      setSavingChoice(false);
+    }
+  };
+
   const handleAccept = async (req) => {
     await updateDoc(doc(db, "connectionRequests", req.id), { status: "accepted" });
     await setDoc(doc(db, "hostels", req.hostelId, "students", currentUser.uid), {
       uid: currentUser.uid, name: currentUser.name, careId: currentUser.careId,
+      room: "", status: "active", rentStatus: "due",
       joinedAt: serverTimestamp(),
     });
     await setDoc(doc(db, "users", currentUser.uid), {
@@ -2075,62 +2071,83 @@ function StudentDashboard({ currentUser, hostelId, hostelInfo, onAccepted }) {
         })}
       </div>
 
-      {/* Today's Meals */}
+      {/* Today's Menu — pick your meal for each type */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "0 0 10px" }}>
         <span style={{ fontWeight: 700, fontSize: 15.5, color: "#1A1A1A", display: "flex", alignItems: "center", gap: 6 }}>
-          <Utensils size={16} /> Today's Meals
+          <Utensils size={16} /> Today's Menu
         </span>
-        <span style={{
-          fontSize: 12, fontWeight: 600, color: "#1A1A1A", border: "1px solid #ECEDE8",
-          borderRadius: 999, padding: "4px 10px", display: "flex", alignItems: "center", gap: 4
-        }}>Tue, 17 Jun <ChevronDown size={12} /></span>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {studentMeals.map(m => {
-          const Icon = m.icon;
-          return (
-            <div key={m.key} style={{ background: "#fff", border: "1px solid #ECEDE8", borderRadius: 14, padding: 14 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 700, fontSize: 14, color: "#1A1A1A" }}>
-                  <Icon size={15} color={m.fg} /> {m.name}
-                </span>
-                <span style={{ background: m.statusBg, color: m.statusColor, fontSize: 11, fontWeight: 600, borderRadius: 999, padding: "3px 10px" }}>{m.status}</span>
+
+      {!hostelId ? (
+        <div style={{
+          background: "#fff", border: "1px solid #ECEDE8", borderRadius: 14, padding: 16,
+          fontSize: 12.5, color: "#6b6d66"
+        }}>
+          Join a hostel first to see today's menu.
+        </div>
+      ) : !todayMenu ? (
+        <div style={{
+          background: "#fff", border: "1px solid #ECEDE8", borderRadius: 14, padding: 16,
+          fontSize: 12.5, color: "#6b6d66"
+        }}>
+          Your hostel manager hasn't set today's menu yet.
+        </div>
+      ) : (
+        <div style={{ background: "#fff", border: "1px solid #ECEDE8", borderRadius: 16, padding: 16 }}>
+          <div style={{ fontSize: 11.5, color: "#8B8D86", marginBottom: 12 }}>
+            Rice & Dal are included with every meal. Pick your main item below.
+          </div>
+          {MEAL_TYPES.map((mt, i) => {
+            const options = todayMenu[mt.key] || [];
+            return (
+              <div key={mt.key} style={{ marginTop: i > 0 ? 16 : 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#1A1A1A", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                  <mt.icon size={14} color={mt.fg} /> {mt.label}
+                </div>
+                {options.length === 0 ? (
+                  <div style={{ fontSize: 11.5, color: "#c7c8c2" }}>No options set for this meal today.</div>
+                ) : (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {options.map(item => {
+                      const selected = myChoices[mt.key] === item.key;
+                      return (
+                        <button
+                          key={item.key}
+                          onClick={() => pickChoice(mt.key, item.key)}
+                          style={{
+                            border: selected ? "none" : "1px solid #ECEDE8",
+                            background: selected ? mt.fg : "#fff",
+                            color: selected ? "#fff" : "#1A1A1A",
+                            borderRadius: 999, padding: "7px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer"
+                          }}
+                        >
+                          {item.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-              <div style={{ fontSize: 11.5, color: "#8B8D86", margin: "6px 0 4px" }}>{m.time}</div>
-              <div style={{ fontSize: 12.5, color: "#1A1A1A" }}>{m.items}</div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+          <button onClick={handleSaveChoices} disabled={savingChoice} style={{
+            width: "100%", background: GREEN_DARK, border: "none", borderRadius: 12, color: "#fff",
+            padding: "12px 0", fontWeight: 600, fontSize: 13.5, display: "flex", alignItems: "center",
+            justifyContent: "center", gap: 8, cursor: "pointer", marginTop: 16, opacity: savingChoice ? 0.7 : 1
+          }}>
+            <CheckCircle2 size={15} /> {savingChoice ? "Saving..." : "Save My Meal Choices"}
+          </button>
+          {choiceSavedNote && (
+            <div style={{ fontSize: 11.5, color: GREEN, marginTop: 8, textAlign: "center" }}>{choiceSavedNote}</div>
+          )}
+        </div>
+      )}
 
       <div style={{
         background: "#E4F3EA", borderRadius: 12, padding: 12, marginTop: 12,
         display: "flex", alignItems: "center", gap: 10, fontSize: 12, color: "#1A1A1A"
       }}>
         <Info size={15} color={GREEN} /> Please be on time for your meals. Thank you!
-      </div>
-
-      {/* Today's Menu */}
-      <div style={{ background: "#fff", border: "1px solid #ECEDE8", borderRadius: 16, padding: 16, marginTop: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-          <span style={{ fontWeight: 700, fontSize: 15, color: "#1A1A1A", display: "flex", alignItems: "center", gap: 6 }}>
-            <SquarePen size={15} /> Today's Menu
-          </span>
-          <span style={{ color: GREEN, fontWeight: 600, fontSize: 12.5 }}>View full menu</span>
-        </div>
-        {studentMenu.map((m) => {
-          const Icon = m.icon;
-          return (
-            <div key={m.key} style={{
-              display: "flex", alignItems: "center", gap: 10, padding: "12px 0", borderTop: "1px solid #F0F1EC", marginTop: 8
-            }}>
-              <Icon size={16} color={m.fg} />
-              <span style={{ fontSize: 13.5, color: "#1A1A1A", flex: 1 }}>{m.name}</span>
-              <span style={{ fontSize: 12.5, color: "#8B8D86" }}>{m.items} items</span>
-              <ChevronRight size={15} color="#c7c8c2" />
-            </div>
-          );
-        })}
       </div>
 
       {/* My Rent / My Guests */}
@@ -2183,6 +2200,783 @@ function StudentDashboard({ currentUser, hostelId, hostelInfo, onAccepted }) {
   );
 }
 
+function ManagerMealsScreen({ hostelId }) {
+  const [todayDoc, setTodayDoc] = useState(null);
+  const [menuDraft, setMenuDraft] = useState({ breakfast: [], lunch: [], dinner: [] });
+  const [customItem, setCustomItem] = useState({ breakfast: "", lunch: "", dinner: "" });
+  const [savingMenu, setSavingMenu] = useState(false);
+  const [menuSavedNote, setMenuSavedNote] = useState("");
+  const [history, setHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+
+  useEffect(() => {
+    if (!hostelId) return;
+    const unsub = onSnapshot(doc(db, "hostels", hostelId, "days", todayKey()), (snap) => {
+      const data = snap.exists() ? snap.data() : {};
+      setTodayDoc(data);
+      if (data.menu) setMenuDraft({
+        breakfast: data.menu.breakfast || [],
+        lunch: data.menu.lunch || [],
+        dinner: data.menu.dinner || [],
+      });
+    });
+    return () => unsub();
+  }, [hostelId]);
+
+  useEffect(() => {
+    if (!hostelId) return;
+    (async () => {
+      setLoadingHistory(true);
+      try {
+        const q = query(collection(db, "hostels", hostelId, "days"), orderBy("date", "desc"), limit(8));
+        const snap = await getDocs(q);
+        const days = snap.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .filter(d => d.id !== todayKey());
+        setHistory(days);
+      } catch (err) {
+        console.error("Failed to load meal history:", err);
+      }
+      setLoadingHistory(false);
+    })();
+  }, [hostelId, todayDoc]);
+
+  const toggleMenuItem = (mealKey, item) => {
+    setMenuDraft(prev => {
+      const list = prev[mealKey];
+      const exists = list.some(i => i.key === item.key);
+      return {
+        ...prev,
+        [mealKey]: exists ? list.filter(i => i.key !== item.key) : [...list, item],
+      };
+    });
+  };
+
+  const addCustomItem = (mealKey) => {
+    const text = customItem[mealKey].trim();
+    if (!text) return;
+    const item = { key: slugify(text), label: text };
+    toggleMenuItem(mealKey, item);
+    setCustomItem(prev => ({ ...prev, [mealKey]: "" }));
+  };
+
+  const handleSaveMenu = async () => {
+    setSavingMenu(true);
+    try {
+      await setDoc(doc(db, "hostels", hostelId, "days", todayKey()), {
+        menu: menuDraft,
+        date: todayKey(),
+      }, { merge: true });
+      setMenuSavedNote("Today's menu saved — students can now choose their meals.");
+      setTimeout(() => setMenuSavedNote(""), 3000);
+    } finally {
+      setSavingMenu(false);
+    }
+  };
+
+  const tallyFor = (dayData) => {
+    const tally = { breakfast: {}, lunch: {}, dinner: {} };
+    const choicesMap = dayData?.choices || {};
+    Object.values(choicesMap).forEach(choice => {
+      MEAL_TYPES.forEach(({ key }) => {
+        const picked = choice[key];
+        if (picked) tally[key][picked] = (tally[key][picked] || 0) + 1;
+      });
+    });
+    return tally;
+  };
+
+  const choiceTally = tallyFor(todayDoc);
+  const totalRespondedStudents = Object.keys(todayDoc?.choices || {}).length;
+
+  const formatSummaryLine = (tally, mealKey, menuForDay) => {
+    const entries = Object.entries(tally[mealKey]);
+    if (entries.length === 0) return "No responses";
+    return entries.map(([key, count]) => {
+      const label = MEAL_PRESET_ITEMS.find(p => p.key === key)?.label
+        || (menuForDay?.[mealKey]?.find(i => i.key === key)?.label) || key;
+      return `${label}-${count}`;
+    }).join(", ");
+  };
+
+  return (
+    <div>
+      <div style={{ fontWeight: 700, fontSize: 18, color: GREEN, marginBottom: 2 }}>Meals</div>
+      <div style={{ fontSize: 11.5, color: "#8B8D86", marginBottom: 14 }}>Set today's menu, see who chose what, and browse past days.</div>
+
+      {/* Today's Meals Summary */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+        <span style={{ fontWeight: 700, fontSize: 15.5, color: "#1A1A1A", display: "flex", alignItems: "center", gap: 6 }}>
+          <Utensils size={16} /> Today's Summary
+        </span>
+        <span style={{ fontSize: 11.5, color: "#8B8D86" }}>{totalRespondedStudents} responded</span>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16 }}>
+        {MEAL_TYPES.map(mt => {
+          const Icon = mt.icon;
+          const entries = Object.entries(choiceTally[mt.key]);
+          const total = entries.reduce((sum, [, c]) => sum + c, 0);
+          return (
+            <div key={mt.key} style={{ background: "#fff", border: "1px solid #ECEDE8", borderRadius: 12, padding: "12px 8px", textAlign: "center" }}>
+              <Icon size={16} color={mt.fg} style={{ marginBottom: 6 }} />
+              <div style={{ fontSize: 18, fontWeight: 700, color: "#1A1A1A" }}>{total}</div>
+              <div style={{ fontSize: 10, color: "#8B8D86", marginBottom: 4 }}>{mt.label}</div>
+              <div style={{ fontSize: 9.5, color: entries.length ? "#6b6d66" : "#c7c8c2", lineHeight: 1.4 }}>
+                {formatSummaryLine(choiceTally, mt.key, menuDraft)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Input Menu For Today */}
+      <div style={{ background: "#fff", border: "1px solid #ECEDE8", borderRadius: 16, padding: 16, marginBottom: 16 }}>
+        <div style={{ fontWeight: 700, fontSize: 15, color: "#1A1A1A", display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
+          <SquarePen size={15} /> Submit Today's Menu
+        </div>
+        <div style={{ fontSize: 11.5, color: "#8B8D86", marginBottom: 12 }}>
+          Rice & Dal are included with every meal automatically. Pick the main items students can choose from below.
+        </div>
+        {MEAL_TYPES.map((mt, i) => (
+          <div key={mt.key} style={{ marginTop: i > 0 ? 16 : 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#1A1A1A", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+              <mt.icon size={14} color={mt.fg} /> {mt.label}
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+              {MEAL_PRESET_ITEMS.map(item => {
+                const selected = menuDraft[mt.key].some(i => i.key === item.key);
+                return (
+                  <button
+                    key={item.key}
+                    onClick={() => toggleMenuItem(mt.key, item)}
+                    style={{
+                      border: selected ? "none" : "1px solid #ECEDE8",
+                      background: selected ? GREEN : "#fff",
+                      color: selected ? "#fff" : "#1A1A1A",
+                      borderRadius: 999, padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer"
+                    }}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+              {menuDraft[mt.key].filter(i => !MEAL_PRESET_ITEMS.some(p => p.key === i.key)).map(item => (
+                <button
+                  key={item.key}
+                  onClick={() => toggleMenuItem(mt.key, item)}
+                  style={{
+                    border: "none", background: GREEN, color: "#fff",
+                    borderRadius: 999, padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer"
+                  }}
+                >
+                  {item.label} ✕
+                </button>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input
+                value={customItem[mt.key]}
+                onChange={e => setCustomItem(prev => ({ ...prev, [mt.key]: e.target.value }))}
+                onKeyDown={e => { if (e.key === "Enter") addCustomItem(mt.key); }}
+                placeholder="Other item (type and press Enter)"
+                style={{ flex: 1, borderRadius: 8, border: "1px solid #ECEDE8", padding: "7px 10px", fontSize: 12 }}
+              />
+              <button onClick={() => addCustomItem(mt.key)} style={{
+                background: "#F0F1EC", border: "none", borderRadius: 8, padding: "7px 12px",
+                fontSize: 12, fontWeight: 600, color: "#1A1A1A", cursor: "pointer"
+              }}>Add</button>
+            </div>
+          </div>
+        ))}
+        <button onClick={handleSaveMenu} disabled={savingMenu} style={{
+          width: "100%", background: GREEN_DARK, border: "none", borderRadius: 12, color: "#fff",
+          padding: "12px 0", fontWeight: 600, fontSize: 13.5, display: "flex", alignItems: "center",
+          justifyContent: "center", gap: 8, cursor: "pointer", marginTop: 16, opacity: savingMenu ? 0.7 : 1
+        }}>
+          <CheckCircle2 size={15} /> {savingMenu ? "Saving..." : "Save Today's Menu"}
+        </button>
+        {menuSavedNote && (
+          <div style={{ fontSize: 11.5, color: GREEN, marginTop: 8, textAlign: "center" }}>{menuSavedNote}</div>
+        )}
+      </div>
+
+      {/* Meal History */}
+      <SchSectionTitle>Meal History</SchSectionTitle>
+      {loadingHistory ? (
+        <div style={{ fontSize: 12, color: "#8B8D86", padding: "10px 0" }}>Loading...</div>
+      ) : history.length === 0 ? (
+        <div style={{
+          background: "#fff", border: "1px solid #ECEDE8", borderRadius: 14, padding: 16,
+          fontSize: 12.5, color: "#6b6d66", marginBottom: 16
+        }}>
+          No past days yet — history will appear here once you've saved menus on previous days.
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+          {history.map(day => {
+            const tally = tallyFor(day);
+            const responded = Object.keys(day.choices || {}).length;
+            return (
+              <div key={day.id} style={{ background: "#fff", border: "1px solid #ECEDE8", borderRadius: 12, padding: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#1A1A1A" }}>{day.id}</span>
+                  <span style={{ fontSize: 11, color: "#8B8D86" }}>{responded} responded</span>
+                </div>
+                {MEAL_TYPES.map(mt => (
+                  <div key={mt.key} style={{ fontSize: 11.5, color: "#6b6d66", marginTop: 2 }}>
+                    <b style={{ color: "#1A1A1A" }}>{mt.label}:</b> {formatSummaryLine(tally, mt.key, day.menu)}
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ManagerRentScreen({ hostelId, students, hostelInfo, onUpdateStudent }) {
+  const [monthlyRent, setMonthlyRent] = useState(hostelInfo?.monthlyRent || 0);
+  const [rentInput, setRentInput] = useState(String(hostelInfo?.monthlyRent || ""));
+  const [savingRent, setSavingRent] = useState(false);
+  const [payments, setPayments] = useState([]);
+  const [markingPaidId, setMarkingPaidId] = useState(null);
+
+  useEffect(() => {
+    setMonthlyRent(hostelInfo?.monthlyRent || 0);
+    setRentInput(String(hostelInfo?.monthlyRent || ""));
+  }, [hostelInfo]);
+
+  useEffect(() => {
+    if (!hostelId) return;
+    const q = query(collection(db, "hostels", hostelId, "payments"), orderBy("date", "desc"), limit(20));
+    const unsub = onSnapshot(q, (snap) => {
+      setPayments(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
+  }, [hostelId]);
+
+  const handleSaveRent = async () => {
+    const amount = Number(rentInput) || 0;
+    setSavingRent(true);
+    try {
+      await updateDoc(doc(db, "hostels", hostelId), { monthlyRent: amount });
+      setMonthlyRent(amount);
+    } finally {
+      setSavingRent(false);
+    }
+  };
+
+  const handleMarkPaid = async (student) => {
+    setMarkingPaidId(student.id);
+    try {
+      await addDoc(collection(db, "hostels", hostelId, "payments"), {
+        studentUid: student.id,
+        studentName: student.name,
+        amount: monthlyRent,
+        date: serverTimestamp(),
+      });
+      await onUpdateStudent(student.id, { rentStatus: "paid" });
+    } finally {
+      setMarkingPaidId(null);
+    }
+  };
+
+  const paidCount = students.filter(s => s.rentStatus === "paid").length;
+  const dueStudents = students.filter(s => s.rentStatus === "due");
+
+  const now = new Date();
+  const collectedThisMonth = payments
+    .filter(p => p.date?.toDate && p.date.toDate().getMonth() === now.getMonth() && p.date.toDate().getFullYear() === now.getFullYear())
+    .reduce((sum, p) => sum + (p.amount || 0), 0);
+  const outstandingTotal = dueStudents.length * monthlyRent;
+
+  return (
+    <div>
+      <div style={{ fontWeight: 700, fontSize: 18, color: GREEN, marginBottom: 2 }}>Rent</div>
+      <div style={{ fontSize: 11.5, color: "#8B8D86", marginBottom: 14 }}>Track collections, dues, and payment history.</div>
+
+      {/* Monthly rent setting */}
+      <div style={{ background: "#fff", border: "1px solid #ECEDE8", borderRadius: 14, padding: 14, marginBottom: 14 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 600, color: "#1A1A1A", marginBottom: 8 }}>Monthly rent per student (৳)</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            type="number"
+            value={rentInput}
+            onChange={e => setRentInput(e.target.value)}
+            placeholder="e.g. 4000"
+            style={{ flex: 1, borderRadius: 8, border: "1px solid #ECEDE8", padding: "9px 10px", fontSize: 13 }}
+          />
+          <button onClick={handleSaveRent} disabled={savingRent} style={{
+            background: GREEN, color: "#fff", border: "none", borderRadius: 8, padding: "9px 16px",
+            fontWeight: 600, fontSize: 12.5, cursor: "pointer", opacity: savingRent ? 0.7 : 1
+          }}>{savingRent ? "Saving..." : "Save"}</button>
+        </div>
+      </div>
+
+      {/* Payment Summary */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+        <div style={{ background: "#E4F3EA", borderRadius: 14, padding: 14 }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "#1A1A1A" }}>৳ {collectedThisMonth.toLocaleString()}</div>
+          <div style={{ fontSize: 12, color: "#6b6d66" }}>Collected this month</div>
+        </div>
+        <div style={{ background: "#FCE9EB", borderRadius: 14, padding: 14 }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "#1A1A1A" }}>৳ {outstandingTotal.toLocaleString()}</div>
+          <div style={{ fontSize: 12, color: "#6b6d66" }}>Outstanding ({dueStudents.length} students)</div>
+        </div>
+        <div style={{ background: "#E5EFFC", borderRadius: 14, padding: 14 }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "#1A1A1A" }}>{paidCount}</div>
+          <div style={{ fontSize: 12, color: "#6b6d66" }}>Paid students</div>
+        </div>
+        <div style={{ background: "#FDF0DF", borderRadius: 14, padding: 14 }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "#1A1A1A" }}>{dueStudents.length}</div>
+          <div style={{ fontSize: 12, color: "#6b6d66" }}>Due students</div>
+        </div>
+      </div>
+
+      {/* Dues list */}
+      <SchSectionTitle>Students with Due Rent</SchSectionTitle>
+      {dueStudents.length === 0 ? (
+        <div style={{
+          background: "#fff", border: "1px solid #ECEDE8", borderRadius: 14, padding: 16,
+          fontSize: 12.5, color: "#6b6d66", marginBottom: 16
+        }}>
+          Everyone's paid up — no dues right now.
+        </div>
+      ) : (
+        <div style={{ background: "#fff", border: "1px solid #ECEDE8", borderRadius: 14, padding: "6px 14px", marginBottom: 16 }}>
+          {dueStudents.map((s, i) => (
+            <div key={s.id} style={{
+              display: "flex", alignItems: "center", gap: 12, padding: "12px 0",
+              borderBottom: i < dueStudents.length - 1 ? "1px solid #F0F1EC" : "none"
+            }}>
+              <div style={{
+                width: 34, height: 34, borderRadius: "50%", background: "#FCE9EB",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontWeight: 700, color: "#E0435A", fontSize: 12.5, flexShrink: 0
+              }}>{getInitialsFrom(s.name)}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: "#1A1A1A" }}>{s.name}</div>
+                <div style={{ fontSize: 11, color: "#8B8D86" }}>Room {s.room || "Not set"}</div>
+              </div>
+              <button
+                onClick={() => handleMarkPaid(s)}
+                disabled={markingPaidId === s.id || !monthlyRent}
+                title={!monthlyRent ? "Set a monthly rent amount first" : ""}
+                style={{
+                  background: GREEN, color: "#fff", border: "none", borderRadius: 8, padding: "7px 12px",
+                  fontSize: 11.5, fontWeight: 600, cursor: "pointer", opacity: markingPaidId === s.id || !monthlyRent ? 0.6 : 1
+                }}
+              >
+                {markingPaidId === s.id ? "Saving..." : "Mark Paid"}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Payment History */}
+      <SchSectionTitle>Payment History</SchSectionTitle>
+      {payments.length === 0 ? (
+        <div style={{
+          background: "#fff", border: "1px solid #ECEDE8", borderRadius: 14, padding: 16,
+          fontSize: 12.5, color: "#6b6d66"
+        }}>
+          No payments recorded yet.
+        </div>
+      ) : (
+        <div style={{ background: "#fff", border: "1px solid #ECEDE8", borderRadius: 14, padding: "6px 14px" }}>
+          {payments.map((p, i) => (
+            <div key={p.id} style={{
+              display: "flex", alignItems: "center", gap: 12, padding: "12px 0",
+              borderBottom: i < payments.length - 1 ? "1px solid #F0F1EC" : "none"
+            }}>
+              <div style={{
+                width: 32, height: 32, borderRadius: "50%", background: "#E4F3EA",
+                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0
+              }}>
+                <Banknote size={15} color={GREEN} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#1A1A1A" }}>{p.studentName}</div>
+                <div style={{ fontSize: 11, color: "#8B8D86" }}>
+                  {p.date?.toDate ? p.date.toDate().toLocaleDateString() : "Just now"}
+                </div>
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: GREEN }}>৳ {(p.amount || 0).toLocaleString()}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ManagerReportsScreen({ hostelId, students, hostelInfo }) {
+  const [mealTrend, setMealTrend] = useState([]);
+  const [loadingTrend, setLoadingTrend] = useState(true);
+  const [payments, setPayments] = useState([]);
+
+  useEffect(() => {
+    if (!hostelId) return;
+    (async () => {
+      setLoadingTrend(true);
+      try {
+        const q = query(collection(db, "hostels", hostelId, "days"), orderBy("date", "desc"), limit(7));
+        const snap = await getDocs(q);
+        const days = snap.docs.map(d => ({ id: d.id, ...d.data() })).reverse();
+        setMealTrend(days.map(d => ({
+          date: d.id.slice(5),
+          responses: Object.keys(d.choices || {}).length,
+        })));
+      } catch (err) {
+        console.error("Failed to load meal trend:", err);
+      }
+      setLoadingTrend(false);
+    })();
+  }, [hostelId]);
+
+  useEffect(() => {
+    if (!hostelId) return;
+    const unsub = onSnapshot(collection(db, "hostels", hostelId, "payments"), (snap) => {
+      setPayments(snap.docs.map(d => d.data()));
+    });
+    return () => unsub();
+  }, [hostelId]);
+
+  const total = students.length;
+  const activeCount = students.filter(s => (s.status || "active") === "active").length;
+  const paidCount = students.filter(s => s.rentStatus === "paid").length;
+  const dueCount = students.filter(s => s.rentStatus === "due").length;
+  const totalCollected = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+
+  const rentPieData = [
+    { name: "Paid", value: paidCount, color: GREEN },
+    { name: "Due", value: dueCount, color: "#E0435A" },
+  ];
+
+  const handleExportCsv = () => {
+    const header = ["Name", "Room", "CARE ID", "Status", "Rent Status"];
+    const rows = students.map(s => [
+      s.name || "", s.room || "", s.careId || "", s.status || "active", s.rentStatus || "due",
+    ]);
+    const csv = [header, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `students-${todayKey()}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div>
+      <div style={{ fontWeight: 700, fontSize: 18, color: GREEN, marginBottom: 2 }}>Reports</div>
+      <div style={{ fontSize: 11.5, color: "#8B8D86", marginBottom: 14 }}>Analytics computed from your real hostel data.</div>
+
+      {/* Analytics summary */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+        <div style={{ background: "#fff", border: "1px solid #ECEDE8", borderRadius: 14, padding: 14 }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "#1A1A1A" }}>{total}</div>
+          <div style={{ fontSize: 12, color: "#6b6d66" }}>Total Students</div>
+        </div>
+        <div style={{ background: "#fff", border: "1px solid #ECEDE8", borderRadius: 14, padding: 14 }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "#1A1A1A" }}>{activeCount}</div>
+          <div style={{ fontSize: 12, color: "#6b6d66" }}>Active</div>
+        </div>
+        <div style={{ background: "#fff", border: "1px solid #ECEDE8", borderRadius: 14, padding: 14 }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "#1A1A1A" }}>৳ {totalCollected.toLocaleString()}</div>
+          <div style={{ fontSize: 12, color: "#6b6d66" }}>Total Collected</div>
+        </div>
+        <div style={{ background: "#fff", border: "1px solid #ECEDE8", borderRadius: 14, padding: 14 }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "#1A1A1A" }}>{total ? Math.round((paidCount / total) * 100) : 0}%</div>
+          <div style={{ fontSize: 12, color: "#6b6d66" }}>Rent Collection Rate</div>
+        </div>
+      </div>
+
+      {/* Rent status pie */}
+      <div style={{ background: "#fff", border: "1px solid #ECEDE8", borderRadius: 16, padding: 16, marginBottom: 16 }}>
+        <div style={{ fontWeight: 700, fontSize: 14.5, color: "#1A1A1A", marginBottom: 10 }}>Rent Status</div>
+        {total === 0 ? (
+          <div style={{ fontSize: 12.5, color: "#6b6d66" }}>No students yet.</div>
+        ) : (
+          <div style={{ height: 160, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={rentPieData} dataKey="value" nameKey="name" innerRadius={40} outerRadius={65}>
+                  {rentPieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+
+      {/* Meal participation trend */}
+      <div style={{ background: "#fff", border: "1px solid #ECEDE8", borderRadius: 16, padding: 16, marginBottom: 16 }}>
+        <div style={{ fontWeight: 700, fontSize: 14.5, color: "#1A1A1A", marginBottom: 10 }}>Meal Participation (last 7 days)</div>
+        {loadingTrend ? (
+          <div style={{ fontSize: 12, color: "#8B8D86" }}>Loading...</div>
+        ) : mealTrend.length === 0 ? (
+          <div style={{ fontSize: 12.5, color: "#6b6d66" }}>No meal data yet — set a menu in the Meals tab first.</div>
+        ) : (
+          <div style={{ height: 180 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={mealTrend} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F0F1EC" vertical={false} />
+                <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#8B8D86" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: "#8B8D86" }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip />
+                <Bar dataKey="responses" fill={GREEN} radius={[3, 3, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+
+      {/* Export */}
+      <div style={{ background: "#fff", border: "1px solid #ECEDE8", borderRadius: 16, padding: 16 }}>
+        <div style={{ fontWeight: 700, fontSize: 14.5, color: "#1A1A1A", marginBottom: 4 }}>Export</div>
+        <div style={{ fontSize: 11.5, color: "#8B8D86", marginBottom: 12 }}>
+          Download your current student roster (name, room, CARE ID, status, rent) as a CSV file.
+        </div>
+        <button onClick={handleExportCsv} disabled={total === 0} style={{
+          width: "100%", background: GREEN_DARK, border: "none", borderRadius: 12, color: "#fff",
+          padding: "12px 0", fontWeight: 600, fontSize: 13.5, display: "flex", alignItems: "center",
+          justifyContent: "center", gap: 8, cursor: "pointer", opacity: total === 0 ? 0.6 : 1
+        }}>
+          <FileText size={15} /> Export Students CSV
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ManagerStudentsScreen({ students, onUpdateStudent, onOpenAdd }) {
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("all"); // all | active | due | onLeave
+  const [expandedId, setExpandedId] = useState(null);
+
+  const total = students.length;
+  const activeCount = students.filter(s => (s.status || "active") === "active").length;
+  const dueCount = students.filter(s => s.rentStatus === "due").length;
+  const onLeaveCount = students.filter(s => s.status === "onLeave").length;
+
+  const filtered = students.filter(s => {
+    const matchesSearch = !search.trim() || [s.name, s.room, s.careId].some(
+      v => (v || "").toLowerCase().includes(search.trim().toLowerCase())
+    );
+    const matchesFilter =
+      filter === "all" ? true :
+      filter === "active" ? (s.status || "active") === "active" :
+      filter === "due" ? s.rentStatus === "due" :
+      filter === "onLeave" ? s.status === "onLeave" : true;
+    return matchesSearch && matchesFilter;
+  });
+
+  const stats = [
+    { key: "all", value: total, label: "Total Students", bg: "#E4F3EA", fg: GREEN, icon: Users },
+    { key: "active", value: activeCount, label: "Active", bg: "#E4F3EA", fg: GREEN, icon: User },
+    { key: "due", value: dueCount, label: "Due Rent", bg: "#FCE9EB", fg: "#E0435A", icon: Clock },
+    { key: "onLeave", value: onLeaveCount, label: "On Leave", bg: "#FDF0DF", fg: "#E08A20", icon: Briefcase },
+  ];
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 18, color: GREEN }}>Students Dashboard</div>
+          <div style={{ fontSize: 11.5, color: "#8B8D86" }}>Manage all hostel students</div>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+        {stats.map(s => {
+          const Icon = s.icon;
+          const active = filter === s.key;
+          return (
+            <button key={s.key} onClick={() => setFilter(active ? "all" : s.key)} style={{
+              textAlign: "left", background: s.bg, border: active ? `2px solid ${s.fg}` : "2px solid transparent",
+              borderRadius: 14, padding: 14, cursor: "pointer"
+            }}>
+              <Icon size={18} color={s.fg} style={{ marginBottom: 8 }} />
+              <div style={{ fontSize: 22, fontWeight: 700, color: "#1A1A1A" }}>{s.value}</div>
+              <div style={{ fontSize: 12, color: "#6b6d66" }}>{s.label}</div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+        <div style={{
+          flex: 1, display: "flex", alignItems: "center", gap: 8, background: "#fff",
+          border: "1px solid #ECEDE8", borderRadius: 12, padding: "9px 12px"
+        }}>
+          <Search size={15} color="#8B8D86" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search by name, room, CARE ID..."
+            style={{ border: "none", outline: "none", flex: 1, fontSize: 12.5, background: "transparent" }}
+          />
+        </div>
+        <button style={{
+          display: "flex", alignItems: "center", gap: 6, background: "#fff", border: "1px solid #ECEDE8",
+          borderRadius: 12, padding: "9px 14px", fontSize: 12.5, fontWeight: 600, color: "#1A1A1A", cursor: "pointer"
+        }}>
+          <SquarePen size={14} /> Filter
+        </button>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+        <span style={{ fontWeight: 700, fontSize: 15, color: GREEN }}>All Students ({filtered.length})</span>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div style={{
+          background: "#fff", border: "1px solid #ECEDE8", borderRadius: 14, padding: 20,
+          textAlign: "center", fontSize: 12.5, color: "#6b6d66", marginBottom: 16
+        }}>
+          {total === 0 ? "No students yet — add one using Quick Entry on the Dashboard." : "No students match your search/filter."}
+        </div>
+      ) : (
+        <div style={{ background: "#fff", border: "1px solid #ECEDE8", borderRadius: 14, padding: "6px 14px", marginBottom: 16 }}>
+          {filtered.map((s, i) => {
+            const expanded = expandedId === s.id;
+            const statusLabel = s.status === "onLeave" ? "On Leave" : "Active";
+            const statusColor = s.status === "onLeave" ? "#E08A20" : GREEN;
+            const statusBg = s.status === "onLeave" ? "#FDF0DF" : "#E4F3EA";
+            return (
+              <div key={s.id} style={{ borderBottom: i < filtered.length - 1 ? "1px solid #F0F1EC" : "none" }}>
+                <button
+                  onClick={() => setExpandedId(expanded ? null : s.id)}
+                  style={{
+                    width: "100%", background: "none", border: "none", cursor: "pointer",
+                    display: "flex", alignItems: "center", gap: 12, padding: "12px 0", textAlign: "left"
+                  }}
+                >
+                  <div style={{
+                    width: 40, height: 40, borderRadius: "50%", background: "#E4F3EA",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontWeight: 700, fontSize: 13, color: GREEN, flexShrink: 0
+                  }}>{getInitialsFrom(s.name)}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: "#1A1A1A" }}>{s.name}</div>
+                    <div style={{ fontSize: 11, color: "#8B8D86" }}>
+                      Room {s.room || "Not set"} · {s.careId}
+                    </div>
+                    <span style={{
+                      display: "inline-block", marginTop: 4, background: statusBg, color: statusColor,
+                      fontSize: 10, fontWeight: 600, borderRadius: 999, padding: "2px 8px"
+                    }}>{statusLabel}</span>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    {s.rentStatus === "due" ? (
+                      <span style={{ color: "#E0435A", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
+                        <Clock size={13} /> Due
+                      </span>
+                    ) : (
+                      <span style={{ color: GREEN, fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
+                        <CheckCircle2 size={13} /> Paid
+                      </span>
+                    )}
+                  </div>
+                  <ChevronRight size={16} color="#c7c8c2" style={{ transform: expanded ? "rotate(90deg)" : "none" }} />
+                </button>
+
+                {expanded && (
+                  <div style={{ background: "#F7F8F4", borderRadius: 12, padding: 12, margin: "0 0 12px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                      <span style={{ fontSize: 12, color: "#6b6d66", width: 60 }}>Room</span>
+                      <input
+                        defaultValue={s.room || ""}
+                        onBlur={e => onUpdateStudent(s.id, { room: e.target.value })}
+                        placeholder="e.g. 203"
+                        style={{ flex: 1, borderRadius: 8, border: "1px solid #ECEDE8", padding: "6px 10px", fontSize: 12.5 }}
+                      />
+                    </div>
+                    <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                      <span style={{ fontSize: 12, color: "#6b6d66", width: 60, paddingTop: 6 }}>Status</span>
+                      <div style={{ display: "flex", gap: 6, flex: 1 }}>
+                        <button onClick={() => onUpdateStudent(s.id, { status: "active" })} style={{
+                          flex: 1, padding: "6px 0", borderRadius: 8, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+                          border: "none", background: (s.status || "active") === "active" ? GREEN : "#fff",
+                          color: (s.status || "active") === "active" ? "#fff" : "#1A1A1A",
+                          boxShadow: (s.status || "active") === "active" ? "none" : "0 0 0 1px #ECEDE8 inset"
+                        }}>Active</button>
+                        <button onClick={() => onUpdateStudent(s.id, { status: "onLeave" })} style={{
+                          flex: 1, padding: "6px 0", borderRadius: 8, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+                          border: "none", background: s.status === "onLeave" ? "#E08A20" : "#fff",
+                          color: s.status === "onLeave" ? "#fff" : "#1A1A1A",
+                          boxShadow: s.status === "onLeave" ? "none" : "0 0 0 1px #ECEDE8 inset"
+                        }}>On Leave</button>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <span style={{ fontSize: 12, color: "#6b6d66", width: 60, paddingTop: 6 }}>Rent</span>
+                      <div style={{ display: "flex", gap: 6, flex: 1 }}>
+                        <button onClick={() => onUpdateStudent(s.id, { rentStatus: "paid" })} style={{
+                          flex: 1, padding: "6px 0", borderRadius: 8, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+                          border: "none", background: s.rentStatus === "paid" ? GREEN : "#fff",
+                          color: s.rentStatus === "paid" ? "#fff" : "#1A1A1A",
+                          boxShadow: s.rentStatus === "paid" ? "none" : "0 0 0 1px #ECEDE8 inset"
+                        }}>Paid</button>
+                        <button onClick={() => onUpdateStudent(s.id, { rentStatus: "due" })} style={{
+                          flex: 1, padding: "6px 0", borderRadius: 8, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+                          border: "none", background: s.rentStatus === "due" ? "#E0435A" : "#fff",
+                          color: s.rentStatus === "due" ? "#fff" : "#1A1A1A",
+                          boxShadow: s.rentStatus === "due" ? "none" : "0 0 0 1px #ECEDE8 inset"
+                        }}>Due</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Quick Actions */}
+      <SchSectionTitle>Quick Actions</SchSectionTitle>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 16 }}>
+        {[
+          { key: "add", name: "Add Student", icon: UserPlus, bg: "#E4F3EA", fg: GREEN, onClick: onOpenAdd },
+          { key: "attendance", name: "Attendance", icon: ClipboardCheck, bg: "#E5EFFC", fg: "#2F6FE0", onClick: null },
+          { key: "meals", name: "Meal Summary", icon: Utensils, bg: "#FDF0DF", fg: "#E08A20", onClick: null },
+          { key: "export", name: "Export Report", icon: FileText, bg: "#EFEAFB", fg: "#6E4FD1", onClick: null },
+        ].map(q => {
+          const Icon = q.icon;
+          return (
+            <button key={q.key} onClick={q.onClick || undefined} style={{
+              textAlign: "center", background: "#fff", border: "1px solid #ECEDE8", borderRadius: 14,
+              padding: "12px 6px", cursor: q.onClick ? "pointer" : "default", opacity: q.onClick ? 1 : 0.6
+            }}>
+              <div style={{
+                width: 34, height: 34, borderRadius: 10, background: q.bg, margin: "0 auto 6px",
+                display: "flex", alignItems: "center", justifyContent: "center"
+              }}>
+                <Icon size={16} color={q.fg} />
+              </div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: "#1A1A1A" }}>{q.name}</div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ fontSize: 11, color: "#8B8D86", textAlign: "center", marginBottom: 4 }}>
+        Attendance, Meal Summary shortcuts, and Export Report are coming in a later step.
+      </div>
+    </div>
+  );
+}
+
 function HostelScreen({ onBack }) {
   const currentUser = useCurrentUser();
   const [loadingRole, setLoadingRole] = useState(true);
@@ -2190,7 +2984,20 @@ function HostelScreen({ onBack }) {
   const [hostelId, setHostelId] = useState(null);
   const [hostelInfo, setHostelInfo] = useState(null);
   const [activeHostelTab, setActiveHostelTab] = useState("dashboard");
+  const [students, setStudents] = useState([]);
   const tabs = role === "manager" ? managerTabs : studentTabs;
+
+  useEffect(() => {
+    if (!hostelId) { setStudents([]); return; }
+    const unsub = onSnapshot(collection(db, "hostels", hostelId, "students"), (snap) => {
+      setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
+  }, [hostelId]);
+
+  const updateStudentField = async (uid, fields) => {
+    await updateDoc(doc(db, "hostels", hostelId, "students", uid), fields);
+  };
 
   useEffect(() => {
     if (!currentUser) return;
@@ -2332,7 +3139,26 @@ function HostelScreen({ onBack }) {
         </div>
 
         {role === "manager" ? (
-          <ManagerDashboard currentUser={currentUser} hostelId={hostelId} hostelInfo={hostelInfo} />
+          activeHostelTab === "students" ? (
+            <ManagerStudentsScreen
+              students={students}
+              onUpdateStudent={updateStudentField}
+              onOpenAdd={() => setActiveHostelTab("dashboard")}
+            />
+          ) : activeHostelTab === "meals" ? (
+            <ManagerMealsScreen hostelId={hostelId} />
+          ) : activeHostelTab === "rent" ? (
+            <ManagerRentScreen
+              hostelId={hostelId}
+              students={students}
+              hostelInfo={hostelInfo}
+              onUpdateStudent={updateStudentField}
+            />
+          ) : activeHostelTab === "reports" ? (
+            <ManagerReportsScreen hostelId={hostelId} students={students} hostelInfo={hostelInfo} />
+          ) : (
+            <ManagerDashboard currentUser={currentUser} hostelId={hostelId} hostelInfo={hostelInfo} students={students} />
+          )
         ) : (
           <StudentDashboard currentUser={currentUser} hostelId={hostelId} hostelInfo={hostelInfo} onAccepted={handleAccepted} />
         )}
