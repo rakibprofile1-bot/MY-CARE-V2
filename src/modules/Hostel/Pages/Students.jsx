@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { GREEN } from "../../../constants/colors";
 import { getInitialsFrom } from "../../../utils/helpers";
-import SectionTitle from "../../../components/sectionTitle";
+import SectionTitle from "../../../components/sectiontitle";
 
 export default function Students() {
   const navigate = useNavigate();

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { GREEN } from "../constants/colors";
-import { CARE_DIRECTORY } from "../constants/careDirectory";
+import { CARE_DIRECTORY } from "../constants/caredirectory";
 
 export default function ConnectByCareId({ label, placeholder, onSent, onFind }) {
   const [input, setInput] = useState("");

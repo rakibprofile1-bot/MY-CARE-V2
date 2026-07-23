@@ -8,11 +8,11 @@ import {
 } from "lucide-react";
 import { GREEN, GREEN_DARK } from "../../../constants/colors";
 import { getInitialsFrom } from "../../../utils/helpers";
-import ConnectByCareId from "../../../components/connectByCareId";
-import SectionTitle from "../../../components/sectionTitle";
+import ConnectByCareId from "../../../components/connectbycareid";
+import SectionTitle from "../../../components/sectiontitle";
 import {
   managerStats, recentActivities, menuToday,
-} from "../../../constants/hostelData";
+} from "../../../constants/hosteldata";
 
 export default function ManagerDashboard({ currentUser, hostelId, hostelInfo, students }) {
   const [quickEntryOpen, setQuickEntryOpen] = useState(false);

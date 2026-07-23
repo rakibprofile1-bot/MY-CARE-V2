@@ -7,8 +7,8 @@ import {
 } from "lucide-react";
 import { BarChart, Bar, Cell, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import { GREEN, GREEN_DARK, FIN_GREEN, FIN_BLUE, FIN_ORANGE, FIN_PURPLE, FIN_RED } from "../../../constants/colors";
-import CareLogo from "../../../components/careLogo";
-import CareIdBadge from "../../../components/careIdBadge";
+import CareLogo from "../../../components/carelogo";
+import CareIdBadge from "../../../components/careIdbadge";
 
 const prayerOverview = [
   { key: "prayed", icon: CheckCircle2, bg: "#E4F3EA", fg: FIN_GREEN, value: "3", label: "Prayed", sub: "times" },

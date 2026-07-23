@@ -8,9 +8,9 @@ import {
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { auth } from "./firebase/auth";
 import { db } from "./firebase/firestore";
-import { CurrentUserContext } from "./contexts/currentUserContext";
+import { CurrentUserContext } from "./contexts/currentusercontext";
 import { getInitialsFrom } from "./utils/helpers";
-import { generateCareId } from "./utils/generateCareId";
+import { generateCareId } from "./utils/generatecareid";
 
 const GREEN = "#1F8A5A";
 const GREEN_DARK = "#166B45";

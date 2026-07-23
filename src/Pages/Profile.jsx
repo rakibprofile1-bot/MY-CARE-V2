@@ -3,10 +3,10 @@ import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft, User, Bell, Shield, Settings, HelpCircle, ChevronRight, Phone, Mail, LogOut,
 } from "lucide-react";
-import { useCurrentUser } from "../contexts/currentUserContext";
+import { useCurrentUser } from "../contexts/currentusercontext";
 import { signOutUser } from "../firebase/auth";
 import { GREEN } from "../constants/colors";
-import CareIdBadge from "../components/careIdBadge";
+import CareIdBadge from "../components/careIdbadge";
 
 export default function ProfilePage() {
   const navigate = useNavigate();

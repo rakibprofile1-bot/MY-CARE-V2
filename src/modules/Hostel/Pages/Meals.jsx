@@ -8,7 +8,7 @@ import { Utensils, SquarePen, CheckCircle2 } from "lucide-react";
 import { GREEN, GREEN_DARK } from "../../../constants/colors";
 import { todayKey, slugify } from "../../../utils/helpers";
 import { MEAL_TYPES, MEAL_PRESET_ITEMS } from "../../../constants/meals";
-import SectionTitle from "../../../components/sectionTitle";
+import SectionTitle from "../../../components/sectiontitle";
 
 export default function Meals() {
   const { hostelId } = useOutletContext();

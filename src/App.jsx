@@ -1,21 +1,21 @@
 import React from "react";
 import { Routes, Route } from "react-router-dom";
-import AppLayout from "./AppLayout";
-import HomePage from "./pages/Home";
-import ProfilePage from "./pages/Profile";
-import HealthPage from "./modules/health/pages/HealthPage";
+import AppLayout from "./appLayout";
+import HomePage from "./pages/home";
+import ProfilePage from "./pages/profile";
+import HealthPage from "./modules/health/pages/healthPage";
 import FamilyPage from "./modules/family/pages/FamilyPage";
-import TravelPage from "./modules/travel/pages/TravelPage";
+import TravelPage from "./pages/travelpage";
 import FinancePage from "./modules/finance/pages/FinancePage";
-import PrayerPage from "./modules/prayer/pages/PrayerPage";
+import PrayerPage from "./modules/prayer/pages/prayerpage";
 import SchoolPage from "./modules/school/pages/SchoolPage";
-import DailyTaskPage from "./modules/dailytask/pages/DailyTaskPage";
-import HostelLayout from "./modules/hostel/pages/HostelLayout";
-import HostelDashboard from "./modules/hostel/pages/Dashboard";
-import HostelStudents from "./modules/hostel/pages/Students";
-import HostelMeals from "./modules/hostel/pages/Meals";
-import HostelRent from "./modules/hostel/pages/Rent";
-import HostelReports from "./modules/hostel/pages/Reports";
+import DailyTaskPage from "./modules/dailyTask/pages/dailyTaskPage";
+import HostelLayout from "./modules/hostel/pages/hostelLayout";
+import HostelDashboard from "./modules/hostel/pages/dashboard";
+import HostelStudents from "./modules/hostel/pages/students";
+import HostelMeals from "./modules/hostel/pages/meals";
+import HostelRent from "./modules/hostel/pages/rent";
+import HostelReports from "./modules/hostel/pages/reports";
 
 export default function App() {
   return (

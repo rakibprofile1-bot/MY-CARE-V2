@@ -5,12 +5,12 @@ import {
   Radio, Sun, UserPlus, Users, Wallet, Waves, Wallet2, Building2, Bus, List, Receipt,
   CheckSquare, MoreHorizontal, Droplet, Utensils, Car, Sunrise, DoorOpen,
 } from "lucide-react";
-import { GREEN } from "../../../constants/colors";
-import CareLogo from "../../../components/careLogo";
-import CareIdBadge from "../../../components/careIdBadge";
-import ConnectByCareId from "../../../components/connectByCareId";
-import PendingRequestCard from "../../../components/pendingRequestCard";
-import SectionTitle from "../../../components/sectionTitle";
+import { GREEN } from "../constants/colors";
+import CareLogo from "../components/carelogo";
+import CareIdBadge from "../components/careIdbadge";
+import ConnectByCareId from "../components/connectbycareid";
+import PendingRequestCard from "../components/pendingrequestcard";
+import SectionTitle from "../components/sectiontitle";
 
 const tripStats = [
   { key: "days", icon: Calendar, bg: "#E4F3EA", fg: "#1F8A5A", value: "3", label: "Days Left", sub: "Total Duration" },
