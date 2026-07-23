@@ -5,11 +5,11 @@ import {
   ShieldCheck, TreePine, UserPlus, Users, User, UserRound, Smile, NotebookPen, Image, Heart,
 } from "lucide-react";
 import { GREEN } from "../../../constants/colors";
-import CareLogo from "../../../components/CareLogo";
-import CareIdBadge from "../../../components/CareIdBadge";
-import ConnectByCareId from "../../../components/ConnectByCareId";
-import PendingRequestCard from "../../../components/PendingRequestCard";
-import SectionTitle from "../../../components/SectionTitle";
+import CareLogo from "../../../components/careLogo";
+import CareIdBadge from "../../../components/careIdBadge";
+import ConnectByCareId from "../../../components/connectByCareId";
+import PendingRequestCard from "../../../components/pendingRequestCard";
+import SectionTitle from "../../../components/sectionTitle";
 
 const familyStats = [
   { key: "total", label: "Family Members", sub: "All connected", value: "12", icon: Users, bg: "#E4F3EA", fg: "#1F8A5A" },

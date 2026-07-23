@@ -8,7 +8,7 @@ import {
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { auth } from "./firebase/auth";
 import { db } from "./firebase/firestore";
-import { CurrentUserContext } from "./contexts/CurrentUserContext";
+import { CurrentUserContext } from "./contexts/currentUserContext";
 import { getInitialsFrom } from "./utils/helpers";
 import { generateCareId } from "./utils/generateCareId";
 

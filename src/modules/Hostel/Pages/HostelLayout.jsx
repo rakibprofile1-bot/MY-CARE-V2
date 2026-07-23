@@ -7,9 +7,9 @@ import { db } from "../../../firebase/firestore";
 import {
   ArrowLeft, ArrowLeftRight, BedDouble, Bell, ChevronRight, Menu, UserCog, GraduationCap,
 } from "lucide-react";
-import { useCurrentUser } from "../../../contexts/CurrentUserContext";
+import { useCurrentUser } from "../../../contexts/currentUserContext";
 import { GREEN } from "../../../constants/colors";
-import CareIdBadge from "../../../components/CareIdBadge";
+import CareIdBadge from "../../../components/careIdBadge";
 import { managerTabs, studentTabs } from "../../../constants/hostelData";
 
 const TAB_ROUTES = {

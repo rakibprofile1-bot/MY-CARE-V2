@@ -1,12 +1,12 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { Home as HomeIcon, User, Settings, HelpCircle, LogOut, X } from "lucide-react";
-import { useCurrentUser } from "../contexts/CurrentUserContext";
+import { useCurrentUser } from "../contexts/currentUserContext";
 import { signOutUser } from "../firebase/auth";
 import { GREEN } from "../constants/colors";
 import { allServicesList } from "../constants/menu";
 import { SERVICE_ROUTES } from "../constants/routes";
-import CareLogo from "./CareLogo";
+import CareLogo from "./careLogo";
 
 export default function MenuDrawer({ open, onClose }) {
   const currentUser = useCurrentUser();

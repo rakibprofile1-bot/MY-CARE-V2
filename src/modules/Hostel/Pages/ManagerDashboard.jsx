@@ -8,8 +8,8 @@ import {
 } from "lucide-react";
 import { GREEN, GREEN_DARK } from "../../../constants/colors";
 import { getInitialsFrom } from "../../../utils/helpers";
-import ConnectByCareId from "../../../components/ConnectByCareId";
-import SectionTitle from "../../../components/SectionTitle";
+import ConnectByCareId from "../../../components/connectByCareId";
+import SectionTitle from "../../../components/sectionTitle";
 import {
   managerStats, recentActivities, menuToday,
 } from "../../../constants/hostelData";

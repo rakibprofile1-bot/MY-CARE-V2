@@ -9,8 +9,8 @@ import {
 import { GREEN, GREEN_DARK } from "../../../constants/colors";
 import { getInitialsFrom, todayKey } from "../../../utils/helpers";
 import { MEAL_TYPES } from "../../../constants/meals";
-import PendingRequestCard from "../../../components/PendingRequestCard";
-import SectionTitle from "../../../components/SectionTitle";
+import PendingRequestCard from "../../../components/pendingRequestCard";
+import SectionTitle from "../../../components/sectionTitle";
 import {
   studentTopStats, studentMeals, studentMenu, studentNotices,
 } from "../../../constants/hostelData";

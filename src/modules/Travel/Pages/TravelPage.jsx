@@ -6,11 +6,11 @@ import {
   CheckSquare, MoreHorizontal, Droplet, Utensils, Car, Sunrise, DoorOpen,
 } from "lucide-react";
 import { GREEN } from "../../../constants/colors";
-import CareLogo from "../../../components/CareLogo";
-import CareIdBadge from "../../../components/CareIdBadge";
-import ConnectByCareId from "../../../components/ConnectByCareId";
-import PendingRequestCard from "../../../components/PendingRequestCard";
-import SectionTitle from "../../../components/SectionTitle";
+import CareLogo from "../../../components/careLogo";
+import CareIdBadge from "../../../components/careIdBadge";
+import ConnectByCareId from "../../../components/connectByCareId";
+import PendingRequestCard from "../../../components/pendingRequestCard";
+import SectionTitle from "../../../components/sectionTitle";
 
 const tripStats = [
   { key: "days", icon: Calendar, bg: "#E4F3EA", fg: "#1F8A5A", value: "3", label: "Days Left", sub: "Total Duration" },

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { CreditCard, CheckCircle2, Copy } from "lucide-react";
-import { useCurrentUser } from "../contexts/CurrentUserContext";
+import { useCurrentUser } from "../contexts/currentUserContext";
 import { GREEN } from "../constants/colors";
 import { CARE_ID } from "../constants/careDirectory";
 

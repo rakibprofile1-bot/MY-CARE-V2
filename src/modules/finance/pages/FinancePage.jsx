@@ -10,9 +10,9 @@ import {
   BarChart, Bar, PieChart, Pie, Cell, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from "recharts";
 import { GREEN, FIN_GREEN, FIN_BLUE, FIN_ORANGE, FIN_PURPLE, FIN_RED } from "../../../constants/colors";
-import CareLogo from "../../../components/CareLogo";
-import CareIdBadge from "../../../components/CareIdBadge";
-import SectionTitle from "../../../components/SectionTitle";
+import CareLogo from "../../../components/careLogo";
+import CareIdBadge from "../../../components/careIdBadge";
+import SectionTitle from "../../../components/sectionTitle";
 
 const financeStats = [
   { key: "balance", icon: Wallet, bg: "#E4F3EA", fg: FIN_GREEN, label: "Total Balance", value: "৳ 24,580", change: "↗ 8.5% this month", changeColor: FIN_GREEN, changeBg: "#E4F3EA" },

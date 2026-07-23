@@ -1,12 +1,12 @@
 import React from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { Menu, Search, Bell, ChevronRight, Plus, Star, Info, Trophy, ArrowRight } from "lucide-react";
-import { useCurrentUser } from "../contexts/CurrentUserContext";
+import { useCurrentUser } from "../contexts/currentUserContext";
 import { GREEN } from "../constants/colors";
 import { services, quickActions, activity } from "../constants/home";
 import { SERVICE_ROUTES } from "../constants/routes";
-import CareLogo from "../components/CareLogo";
-import CareIdBadge from "../components/CareIdBadge";
+import CareLogo from "../components/careLogo";
+import CareIdBadge from "../components/careIdBadge";
 import ServiceCard from "../components/ServiceCard";
 import QuickAction from "../components/QuickAction";
 
