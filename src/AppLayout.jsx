@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Home as HomeIcon, Search, Bell, Plus, User } from "lucide-react";
 import { GREEN, GREEN_DARK } from "./constants/colors";
-import MenuDrawer from "./components/MenuDrawer";
+import MenuDrawer from "./components/menudrawer";
 
 export default function AppLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
